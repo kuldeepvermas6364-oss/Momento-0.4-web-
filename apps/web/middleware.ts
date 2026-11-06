@@ -1,9 +1,16 @@
-import { auth } from "@/lib/auth"
-import { NextResponse } from "next/server"
+import { getToken } from "next-auth/jwt"
+import { NextResponse, type NextRequest } from "next/server"
 
-export default auth((req) => {
+export async function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl
-  const isAuthenticated = !!req.auth
+  // Read the JWT directly in Edge middleware. Importing the full NextAuth
+  // configuration here also bundles Prisma, bcrypt, and the database adapter,
+  // which can exceed Vercel's Edge Function size limit.
+  const token = await getToken({
+    req,
+    secret: process.env.AUTH_SECRET,
+  })
+  const isAuthenticated = !!token
 
   const publicPaths = ["/login", "/register", "/api/auth"]
   const isPublicPath = publicPaths.some((p) => pathname.startsWith(p))
@@ -22,7 +29,7 @@ export default auth((req) => {
   }
 
   return NextResponse.next()
-})
+}
 
 export const config = {
   matcher: ["/((?!_next/static|_next/image|favicon.ico|api/trpc|api/socket).*)"],
